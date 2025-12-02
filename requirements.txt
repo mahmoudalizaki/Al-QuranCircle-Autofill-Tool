@@ -1,0 +1,22 @@
+# Al-QuranCircle AutoFill Reports - Python Dependencies
+# Python 3.8+ required
+
+# GUI Framework
+customtkinter==5.2.2
+
+# Browser Automation
+playwright==1.56.0
+
+# PDF and Report Generation
+reportlab==4.4.5
+
+# Date/Calendar Widget
+tkcalendar==1.6.1
+
+# HTTP Requests (for remote control - disabled but kept for compatibility)
+requests==2.32.5
+
+# Note: Playwright requires browser installation
+# Run: playwright install chromium
+# after installing dependencies
+
