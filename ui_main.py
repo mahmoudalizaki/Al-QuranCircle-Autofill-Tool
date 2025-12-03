@@ -8,6 +8,7 @@ to maintain backward compatibility with existing imports.
 # Import from the ui package (directory) not from this file
 import sys
 from pathlib import Path
+import time
 
 # Add the parent directory to path to import from ui package
 _parent_dir = Path(__file__).parent.parent
@@ -68,9 +69,9 @@ except (ImportError, AttributeError):
     from settings_dialog import SettingsDialog
     
     PROJECT_TITLE = "Al-QuranCircle AutoFill Reports"
-    PROJECT_VERSION = "v1.0.0"
+    PROJECT_VERSION = "v1.0.1 Beta"
     PROJECT_DEVELOPER = "Developed by Mahmoud Zaki"
-    PROJECT_DESCRIPTION = "Automated reporting tool for Quran and Islamic studies teachers to manage student progress and generate reports."
+    PROJECT_DESCRIPTION = "Automated reporting tool for Quran and Islamic studies teachers to manage student progress and generate reports.\n\nThis is a beta version of the application, please report any issues to the developer.\n\nDont't forget to make Du'aa for my parents."
 
 
 
@@ -241,9 +242,27 @@ class StudentManagerApp(ctk.CTk):
         )
         settings_btn.pack(side="left", padx=btn_padx, expand=True, fill="x")
 
+        # Report button
+        report_btn = ctk.CTkButton(
+            row1, text="📄 Report",
+            width=btn_width, height=btn_height,
+            fg_color=btn_fg_color, hover_color=btn_hover_color,
+            text_color=btn_text_color,
+            corner_radius=btn_corner,
+            command=self.open_report_dialog
+        )
+        report_btn.pack(side="left", padx=btn_padx, expand=True, fill="x")
+
+
+        # --- Second row ---
+        row2 = ctk.CTkFrame(buttons_frame, fg_color="transparent")
+        row2.pack(fill="x")
+
+
+
         # Backup button
         backup_btn = ctk.CTkButton(
-            row1, text="💾 Backup",
+            row2, text="💾 Backup",
             width=btn_width, height=btn_height,
             fg_color=btn_fg_color, hover_color=btn_hover_color,
             text_color=btn_text_color,
@@ -252,9 +271,10 @@ class StudentManagerApp(ctk.CTk):
         )
         backup_btn.pack(side="left", padx=btn_padx, expand=True, fill="x")
 
+
         # Restore button
         restore_btn = ctk.CTkButton(
-            row1, text="♻️ Restore",
+            row2, text="♻️ Restore",
             width=btn_width, height=btn_height,
             fg_color=btn_fg_color, hover_color=btn_hover_color,
             text_color=btn_text_color,
@@ -262,21 +282,6 @@ class StudentManagerApp(ctk.CTk):
             command=self.import_backup_action
         )
         restore_btn.pack(side="left", padx=btn_padx, expand=True, fill="x")
-
-        # --- Second row ---
-        row2 = ctk.CTkFrame(buttons_frame, fg_color="transparent")
-        row2.pack(fill="x")
-
-        # Report button
-        report_btn = ctk.CTkButton(
-            row2, text="📄 Report",
-            width=btn_width, height=btn_height,
-            fg_color=btn_fg_color, hover_color=btn_hover_color,
-            text_color=btn_text_color,
-            corner_radius=btn_corner,
-            command=self.open_report_dialog
-        )
-        report_btn.pack(side="left", padx=btn_padx, expand=True, fill="x")
 
         # --- Store references ---
         self.settings_button = settings_btn

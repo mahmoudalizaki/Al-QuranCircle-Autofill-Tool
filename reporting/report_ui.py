@@ -12,7 +12,7 @@ import webbrowser
 
 import customtkinter as ctk
 from tkcalendar import DateEntry
-
+from utils import PROFILES_DIR
 from .report_extractor import ReportCriteria, ReportExtractor, StudentReport
 from .report_exporter import ReportExporter, OutputFormat
 
@@ -179,10 +179,10 @@ class ReportDialog(ctk.CTkToplevel):
             width=150
         )
         generate_btn.pack(side="right", padx=5)
-    
+
     def _get_student_list(self) -> List[str]:
         """Get list of all students with profiles."""
-        profiles_dir = Path("profiles")
+        profiles_dir = PROFILES_DIR
         students = set()
         
         for profile_file in profiles_dir.glob("*.json"):

@@ -13,7 +13,9 @@ BACKUPS_DIR = BASE_DIR / "backups"
 LOGS_DIR = BASE_DIR / "logs"
 HISTORY_DIR = BASE_DIR / "history"
 LOG_FILE = LOGS_DIR / "submissions.log"
-
+CONFIG_DIR = BASE_DIR / "config"
+REPORTS_DIR = BASE_DIR / "reports"
+IMAGES_DIR = BASE_DIR / "images"
 
 # ============================================================================
 # Input Validation and Sanitization Functions

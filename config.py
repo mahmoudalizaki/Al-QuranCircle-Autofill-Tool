@@ -3,7 +3,7 @@ import os
 import logging
 from pathlib import Path
 from typing import Any, Dict, Optional, List
-
+from utils import CONFIG_DIR 
 # -------------------
 # Default settings
 # -------------------
@@ -50,7 +50,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
 
 class ConfigManager:
     _instance = None
-    _config_path = Path("config")
+    _config_path = CONFIG_DIR
     _settings_file = _config_path / "settings.json"
     
     def __init__(self):

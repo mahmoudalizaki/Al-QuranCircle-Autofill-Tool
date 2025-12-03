@@ -22,7 +22,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-
+from utils import REPORTS_DIR
 from .report_extractor import StudentReport, ReportCriteria
 
 OutputFormat = Literal['html', 'pdf']
@@ -31,7 +31,7 @@ class ReportExporter:
     """Handles exporting reports to different formats."""
     
     def __init__(self, output_dir: str = "reports"):
-        self.output_dir = Path(output_dir)
+        self.output_dir = REPORTS_DIR
         self.output_dir.mkdir(exist_ok=True)
     
     def _format_date(self, date_str: str) -> str:

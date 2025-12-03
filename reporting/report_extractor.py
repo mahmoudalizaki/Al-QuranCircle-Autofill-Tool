@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Literal, TypedDict
 import json
 from dataclasses import dataclass
-
+from utils import PROFILES_DIR, HISTORY_DIR
 ReportMode = Literal['first', 'last', 'all']
 
 @dataclass
@@ -37,8 +37,8 @@ class ReportExtractor:
     """Handles extraction of student reports based on various criteria."""
     
     def __init__(self, profiles_dir: str = "profiles"):
-        self.profiles_dir = Path(profiles_dir)
-        self.history_dir = Path("history")
+        self.profiles_dir = PROFILES_DIR
+        self.history_dir = HISTORY_DIR
         
     def _load_profile_history(self, profile_path: Path) -> List[StudentReport]:
         """Load history for a specific profile from the history directory."""

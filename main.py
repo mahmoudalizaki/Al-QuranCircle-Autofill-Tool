@@ -6,7 +6,7 @@ from typing import Optional
 import os
 
 from utils import ensure_directories, setup_logging
-from ui import launch_app
+from ui_main import launch_app
 
 class Application:
     def __init__(self):
