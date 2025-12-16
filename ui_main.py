@@ -474,8 +474,6 @@ class StudentManagerApp(ctk.CTk):
         # Settings button
         settings_btn = ctk.CTkButton(
             row1, text="⚙️ Settings",
-            width=btn_width, height=btn_height,
-            fg_color=btn_fg_color, hover_color=btn_hover_color,
             text_color=btn_text_color,
             corner_radius=btn_corner,
             command=self.open_settings_dialog
@@ -485,8 +483,6 @@ class StudentManagerApp(ctk.CTk):
         # Report button
         report_btn = ctk.CTkButton(
             row1, text="📄 Report",
-            width=btn_width, height=btn_height,
-            fg_color=btn_fg_color, hover_color=btn_hover_color,
             text_color=btn_text_color,
             corner_radius=btn_corner,
             command=self.open_report_dialog
@@ -503,8 +499,6 @@ class StudentManagerApp(ctk.CTk):
         # Backup button
         backup_btn = ctk.CTkButton(
             row2, text="💾 Backup",
-            width=btn_width, height=btn_height,
-            fg_color=btn_fg_color, hover_color=btn_hover_color,
             text_color=btn_text_color,
             corner_radius=btn_corner,
             command=self.backup_profiles_action
@@ -515,9 +509,6 @@ class StudentManagerApp(ctk.CTk):
         # Restore button
         restore_btn = ctk.CTkButton(
             row2, text="♻️ Restore",
-            width=btn_width, height=btn_height,
-            fg_color=btn_fg_color, hover_color=btn_hover_color,
-            text_color=btn_text_color,
             corner_radius=btn_corner,
             command=self.import_backup_action
         )
@@ -580,10 +571,7 @@ class StudentManagerApp(ctk.CTk):
         self.add_button = ctk.CTkButton(
             add_btn_frame,
             text="➕ Add New Student",
-            command=self.add_new_student,
-            fg_color=("#3a7ebf", "#1f538d"),
-            hover_color=("#325882", "#14375e"),
-            height=36
+            command=self.add_new_student
         )
         self.add_button.pack(fill="x")
         

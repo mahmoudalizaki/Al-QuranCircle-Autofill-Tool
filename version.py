@@ -183,7 +183,7 @@ def show_custom_message(
         popup,
         text=reshape_arabic_button(button_text),
         height=42,
-        font=("", 18),
+        font=("Arial", 18),
         command=lambda: (popup.destroy(), root.destroy())
     )
     btn.pack(pady=15)
