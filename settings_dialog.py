@@ -3,6 +3,8 @@ import logging
 from typing import Optional, Callable, Dict, Any
 from config import config
 from tkinter import messagebox
+from utils import THEMES_DIR
+
 
 class SettingsDialog(ctk.CTkToplevel):
     """Dialog for managing application settings."""
@@ -20,6 +22,7 @@ class SettingsDialog(ctk.CTkToplevel):
         self.font_family_var = ctk.StringVar(value="Arial")
         self.font_size_var = ctk.IntVar(value=12)
         self.scaling_var = ctk.DoubleVar(value=1.0)
+        self.color_theme_var = ctk.StringVar(value="blue")
         
         # Teacher
         self.teacher_name_var = ctk.StringVar()
@@ -111,31 +114,46 @@ class SettingsDialog(ctk.CTkToplevel):
         # Bind Enter key to save
         self.bind('<Return>', self._on_save)
         self.bind('<Escape>', lambda e: self.destroy())
+
     def _setup_appearance_tab(self):
         """Set up the appearance tab with theme and UI options."""
         tab = self.tabview.tab("Appearance")
         
-        # Theme selection
+        # --- Appearance Mode (System / Light / Dark) ---
         theme_frame = ctk.CTkFrame(tab, corner_radius=0)
         theme_frame.pack(fill="x", padx=10, pady=(10, 5))
         
-        ctk.CTkLabel(
-            theme_frame, 
-            text="Appearance",
-            font=ctk.CTkFont(weight="bold")
-        ).pack(anchor="w", pady=(0, 10))
+        ctk.CTkLabel(theme_frame, text="Appearance", font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(0, 10))
         
-        # Theme option menu
-        self.theme_var = ctk.StringVar(value=config.get("theme", "system"))
-        ctk.CTkLabel(theme_frame, text="Theme:").pack(anchor="w")
-        theme_menu = ctk.CTkOptionMenu(
+        self.appearance_var = ctk.StringVar(value=config.get("theme", "system"))
+        ctk.CTkLabel(theme_frame, text="Mode:").pack(anchor="w")
+        appearance_menu = ctk.CTkOptionMenu(
             theme_frame,
             values=["system", "light", "dark"],
-            variable=self.theme_var,
-            command=self._on_theme_change
+            variable=self.appearance_var,
+            command=self._on_appearance_change
         )
-        theme_menu.pack(fill="x", pady=(0, 10))
+        appearance_menu.pack(fill="x", pady=(0, 10))
         
+        # --- Color Theme (Default + JSON files) ---
+        default_themes = ["blue"]
+        
+        theme_files = []
+        if THEMES_DIR.exists() and THEMES_DIR.is_dir():
+            theme_files = [f.stem for f in THEMES_DIR.iterdir() if f.suffix.lower() == ".json"]
+        
+        all_themes = default_themes + theme_files
+        
+        self.color_theme_var = ctk.StringVar(value=config.get("appearance.color_theme", "blue"))
+        ctk.CTkLabel(theme_frame, text="Color Theme:").pack(anchor="w")
+        color_menu = ctk.CTkOptionMenu(
+            theme_frame,
+            values=all_themes,
+            variable=self.color_theme_var,
+            command=self._on_color_theme_change
+        )
+        color_menu.pack(fill="x", pady=(0, 10))
+            
         # UI Scaling
         self.scaling_var = ctk.DoubleVar(value=config.get("appearance.ui_scaling", 1.0))
         ctk.CTkLabel(theme_frame, text="UI Scaling:").pack(anchor="w")
@@ -177,7 +195,41 @@ class SettingsDialog(ctk.CTkToplevel):
             command=lambda v: self.font_size_var.set(int(v))
         )
         font_size_slider.pack(fill="x", pady=(0, 10))
-    
+
+
+
+    # --- Handlers ---
+
+    def _on_appearance_change(self, value: str):
+        """Apply appearance mode: System / Light / Dark."""
+        mode_map = {"system": "System", "light": "Light", "dark": "Dark"}
+        selected_mode = mode_map.get(value.lower(), "System")
+        try:
+            ctk.set_appearance_mode(selected_mode)
+            if hasattr(config, "set"):
+                config.set("theme", value.lower())
+        except Exception as e:
+            print(f"Failed to apply appearance mode '{selected_mode}': {e}")
+
+
+    def _on_color_theme_change(self, value: str):
+        """Apply the selected color theme (default or JSON file from THEMES_DIR)."""
+        theme_path = THEMES_DIR / f"{value}.json"
+        try:
+            if theme_path.exists():
+                ctk.set_default_color_theme(str(theme_path))
+            else:
+                ctk.set_default_color_theme(value)  # افتراضي
+            
+            # حفظ الإعداد في ConfigManager
+            if hasattr(config, "set"):
+                config.set("appearance.color_theme", value)
+            else:
+                print("Config object does not support 'set', color theme not saved")
+        except Exception as e:
+            print(f"Failed to apply color theme '{value}': {e}")
+
+                
     def _setup_teacher_tab(self):
         """Set up the teacher information tab."""
         tab = self.tabview.tab("Teacher")
@@ -215,20 +267,7 @@ class SettingsDialog(ctk.CTkToplevel):
         self.teacher_institution_var = ctk.StringVar()
         institution_entry = ctk.CTkEntry(teacher_frame, textvariable=self.teacher_institution_var)
         institution_entry.pack(fill="x", pady=(0, 10))
-        
-        # Max Students
-        ctk.CTkLabel(teacher_frame, text="Maximum Students:").pack(anchor="w")
-        self.max_students_var = ctk.IntVar(value=30)
-        max_students_slider = ctk.CTkSlider(
-            teacher_frame,
-            from_=5,
-            to=100,
-            number_of_steps=19,
-            variable=self.max_students_var,
-            command=lambda v: self.max_students_var.set(int(v))
-        )
-        max_students_slider.pack(fill="x", pady=(0, 10))
-    
+
     def _setup_backup_tab(self):
         """Set up the backup settings tab."""
         tab = self.tabview.tab("Backup")
@@ -554,6 +593,7 @@ class SettingsDialog(ctk.CTkToplevel):
             config.set("reports.logo_path", reports.get("logo_path", ""))
         except Exception as e:
             logging.error(f"Error loading settings: {e}", exc_info=True)
+            
     def _save_settings(self) -> bool:
         """Save settings from the dialog to config."""
         try:
@@ -567,6 +607,8 @@ class SettingsDialog(ctk.CTkToplevel):
             config.set("appearance.font_family", self.font_family_var.get())
             config.set("appearance.font_size", self.font_size_var.get())
             config.set("appearance.ui_scaling", self.scaling_var.get())
+            config.set("appearance.color_theme", self.color_theme_var.get())
+
             
             # Save teacher info
             teacher_info = {
@@ -607,10 +649,18 @@ class SettingsDialog(ctk.CTkToplevel):
             if not config.save_settings():
                 raise Exception("Failed to save settings")
                 
-            # Update UI
-            ctk.set_widget_scaling(self.scaling_var.get())
-            ctk.set_window_scaling(self.scaling_var.get())
-            ctk.set_appearance_mode(self.theme_var.get())
+            # --- Update UI after saving settings ---
+
+            # Scaling
+            scaling = self.scaling_var.get()
+            ctk.set_widget_scaling(scaling)
+            ctk.set_window_scaling(scaling)
+
+            # Appearance mode
+            self._on_appearance_change(self.appearance_var.get())
+
+            # Color theme
+            self._on_color_theme_change(self.color_theme_var.get())
             
             return True
             
@@ -619,12 +669,13 @@ class SettingsDialog(ctk.CTkToplevel):
             return False
 
             
-    def _on_save(self, event=None):
-        """Handle save button click."""
-        try:
-            if self._save_settings():
-                if self.on_save:
-                    self.on_save()
-                self.destroy()
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to save settings: {str(e)}")
+    def _on_save(self):
+        if self._save_settings():
+            messagebox.showinfo("Saved!","Your settings has been Saved!\nPlease restart the application to load new settings!")
+            self.destroy()  # اغلاق نافذة الإعدادات
+
+            # Apply settings to existing main window
+            if hasattr(self.master, "apply_saved_appearance"):
+                self.master.apply_saved_appearance()
+
+

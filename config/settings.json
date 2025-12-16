@@ -1,0 +1,49 @@
+{
+    "theme": "light",
+    "teacher": {
+        "name": "Mahmoud Zaki",
+        "email": "official.quran.ar@gmail.com",
+        "max_students": 30,
+        "phone": "+201065356924",
+        "institution": "Al-Azhar"
+    },
+    "appearance": {
+        "font_family": "Cairo",
+        "font_size": 13,
+        "ui_scaling": 1,
+        "theme": "light",
+        "color_theme": "blue"
+    },
+    "backup": {
+        "auto_backup": true,
+        "backup_count": 5,
+        "backup_path": "K:/WebDev/Extentions/ResetIT/backups"
+    },
+    "reports": {
+        "default_format": "html",
+        "include_logo": false,
+        "logo_path": "K:/WebDev/Extentions/ResetIT/images/logo.png"
+    },
+    "google_form": {
+        "form_url": "https://docs.google.com/forms/d/e/1FAIpQLSf3-SPgf_cI7lyPWPEIzACHB73HgnNsdKouhQYP6RaEgcIK6w/viewform?pli=1",
+        "auto_submit": false,
+        "retries": 3,
+        "retry_delay": 5
+    },
+    "recent_files": [],
+    "window_size": {
+        "width": 960,
+        "height": 620,
+        "maximized": false
+    },
+    "ui_settings": {
+        "auto_save": false,
+        "send_copy": false,
+        "show_browser": false,
+        "use_extension": false,
+        "auto_submit": true,
+        "retries": 1,
+        "retry_delay": 5
+    },
+    "test_value": "test123"
+}

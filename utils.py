@@ -17,6 +17,7 @@ CONFIG_DIR = BASE_DIR / "config"
 REPORTS_DIR = BASE_DIR / "reports"
 IMAGES_DIR = BASE_DIR / "images"
 PNG_REPORTS_DIR = BASE_DIR / "images" / "reports"
+THEMES_DIR = BASE_DIR / "themes"
 
 # ============================================================================
 # Input Validation and Sanitization Functions

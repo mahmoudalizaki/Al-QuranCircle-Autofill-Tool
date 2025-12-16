@@ -76,6 +76,7 @@ except (ImportError, AttributeError):
         load_profile_history,
         append_profile_history,
         PNG_REPORTS_DIR,
+        THEMES_DIR,
     )
     from automation import submit_profile_to_form
     from config import config
@@ -84,7 +85,7 @@ except (ImportError, AttributeError):
     PROJECT_TITLE = "Al-QuranCircle AutoFill Reports"
     PROJECT_VERSION = "1.0.1"
     PROJECT_DEVELOPER = "Developed by Mahmoud Zaki"
-    PROJECT_DESCRIPTION = "Free automated reporting tool. \n\nThis is a beta version of the application, please report any issues to the developer.\n\nDont't forget to make Du'aa for my parents." # "Automated reporting tool for Quran and Islamic studies teachers to manage student progress and generate reports.\n\nThis is a beta version of the application, please report any issues to the developer.\n\nDont't forget to make Du'aa for my parents."
+    PROJECT_DESCRIPTION = "Free automated reporting tool. This is a beta version of the application,\nplease report any issues to the developer.\n\nDont't forget to make Du'aa for my parents." # "Automated reporting tool for Quran and Islamic studies teachers to manage student progress and generate reports.\n\nThis is a beta version of the application, please report any issues to the developer.\n\nDont't forget to make Du'aa for my parents."
 
 
 
@@ -223,12 +224,26 @@ class StudentManagerApp(ctk.CTk):
         self.geometry(f"{window_width}x{window_height}")
         self.minsize(960, 620)
         
-        # Apply theme and scaling
-        ctk.set_appearance_mode(theme)
-        ctk.set_default_color_theme("blue")
+        # --- Load appearance from config ---
+        theme_mode = config.get("theme", "system")  # system / light / dark
+        color_theme = config.get("appearance.color_theme", "blue")
+        scaling = config.get("appearance.ui_scaling", 1.0)
+
+        # --- Apply appearance ---
+        mode_map = {"system": "System", "light": "Light", "dark": "Dark"}
+        ctk.set_appearance_mode(mode_map.get(theme_mode.lower(), "System"))
+
+        theme_path = THEMES_DIR / f"{color_theme}.json"
+        if theme_path.exists():
+            ctk.set_default_color_theme(str(theme_path))
+        else:
+            ctk.set_default_color_theme(color_theme)
+
         ctk.set_widget_scaling(scaling)
         ctk.set_window_scaling(scaling)
          
+
+
         # Check if window was maximized
         if config.get("window_size.maximized", False):
             self.state('zoomed')
@@ -257,8 +272,46 @@ class StudentManagerApp(ctk.CTk):
         # Bind window resize event
         self.bind('<Configure>', self._on_window_resize)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
-        
-        
+        self.apply_saved_appearance()
+     
+    def apply_saved_appearance(self):
+        """Apply saved appearance settings from config.json to the entire app."""
+        try:
+            # قراءة القيم من config
+            theme_mode = config.get("appearance.theme", "system")
+            color_theme = config.get("appearance.color_theme", "blue")
+            scaling = config.get("appearance.ui_scaling", 1.0)
+            font_family = config.get("appearance.font_family", "Arial")
+            font_size = config.get("appearance.font_size", 12)
+
+            # تحديث الواجهة
+            mode_map = {"system": "System", "light": "Light", "dark": "Dark"}
+            ctk.set_appearance_mode(mode_map.get(theme_mode.lower(), "System"))
+
+            theme_path = THEMES_DIR / f"{color_theme}.json"
+            if theme_path.exists():
+                ctk.set_default_color_theme(str(theme_path))
+            else:
+                ctk.set_default_color_theme(color_theme)
+
+            ctk.set_widget_scaling(scaling)
+            ctk.set_window_scaling(scaling)
+
+            # تحديث الخطوط لكل العناصر
+            new_font = ctk.CTkFont(family=font_family, size=font_size)
+            def recursive_update(widget):
+                try:
+                    widget.configure(font=new_font)
+                except:
+                    pass
+                for child in widget.winfo_children():
+                    recursive_update(child)
+
+            recursive_update(self)
+
+        except Exception as e:
+            print(f"Failed to apply saved appearance: {e}")
+
     def _on_window_resize(self, event=None):
         """Handle window resize events to ensure proper scaling."""
         # Update any dynamic elements here if needed
