@@ -12,11 +12,13 @@ class Application:
     def __init__(self):
         self.root = None
 
+
     def show_message(self, title: str, message: str, level: str = "info") -> None:
         """Show a message box with the specified level."""
         if not self.root:
             self.root = tk.Tk()
             self.root.withdraw()
+
         
         try:
             if level.lower() == "error":

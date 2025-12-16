@@ -16,6 +16,7 @@ LOG_FILE = LOGS_DIR / "submissions.log"
 CONFIG_DIR = BASE_DIR / "config"
 REPORTS_DIR = BASE_DIR / "reports"
 IMAGES_DIR = BASE_DIR / "images"
+PNG_REPORTS_DIR = BASE_DIR / "images" / "reports"
 
 # ============================================================================
 # Input Validation and Sanitization Functions
@@ -552,3 +553,5 @@ def sort_profiles(
         return str(profile.get(sort_key, "")).lower()
 
     return sorted(profiles, key=sort_value)
+
+    

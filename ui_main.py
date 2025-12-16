@@ -9,6 +9,15 @@ to maintain backward compatibility with existing imports.
 import sys
 from pathlib import Path
 import time
+from PIL import Image, ImageDraw, ImageFont
+import datetime
+import os
+import textwrap
+# المكتبات الخاصة بدعم العربية
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+
 
 # Add the parent directory to path to import from ui package
 _parent_dir = Path(__file__).parent.parent
@@ -42,12 +51,15 @@ except (ImportError, AttributeError):
     
     # For now, keep the original implementation
     import customtkinter as ctk
+    
     from typing import Dict, Any, List, Optional
     from pathlib import Path
     from datetime import datetime, date
+    from PIL import Image, ImageDraw, ImageFont
     import threading
     from tkinter import messagebox, filedialog
     from tkcalendar import DateEntry
+    
     
     from utils import (
         ensure_directories,
@@ -63,44 +75,141 @@ except (ImportError, AttributeError):
         restore_profiles_from_backup,
         load_profile_history,
         append_profile_history,
+        PNG_REPORTS_DIR,
     )
     from automation import submit_profile_to_form
     from config import config
     from settings_dialog import SettingsDialog
     
     PROJECT_TITLE = "Al-QuranCircle AutoFill Reports"
-    PROJECT_VERSION = "v1.0.1 Beta"
+    PROJECT_VERSION = "1.0.1"
     PROJECT_DEVELOPER = "Developed by Mahmoud Zaki"
-    PROJECT_DESCRIPTION = "Automated reporting tool for Quran and Islamic studies teachers to manage student progress and generate reports.\n\nThis is a beta version of the application, please report any issues to the developer.\n\nDont't forget to make Du'aa for my parents."
+    PROJECT_DESCRIPTION = "Free automated reporting tool. \n\nThis is a beta version of the application, please report any issues to the developer.\n\nDont't forget to make Du'aa for my parents." # "Automated reporting tool for Quran and Islamic studies teachers to manage student progress and generate reports.\n\nThis is a beta version of the application, please report any issues to the developer.\n\nDont't forget to make Du'aa for my parents."
 
 
 
 DATE_FORMAT = "%d/%m/%Y"   # ← تنسيق التاريخ الجديد
+
+import tkinter as tk
+
+class SmartContextMenu:
+    def __init__(self, rtl=False):
+        self.rtl = rtl
+        self.menu = None
+
+    def bind(self, widget):
+        """Bind the context menu to a widget."""
+        widget.bind("<Button-3>", lambda e: self.show_menu(e, widget))
+        widget.bind("<Control-Button-1>", lambda e: self.show_menu(e, widget))
+
+    def show_menu(self, event, widget):
+        """Show the menu above the widget."""
+        if self.menu:
+            self.menu.destroy()
+        self.menu = tk.Toplevel(widget)
+        self.menu.overrideredirect(True)
+        self.menu.attributes("-topmost", True)
+
+        # Position menu at mouse pointer
+        x = widget.winfo_rootx() + event.x
+        y = widget.winfo_rooty() + event.y
+        self.menu.geometry(f"+{x}+{y}")
+
+        # Add buttons according to widget type
+        if isinstance(widget, ctk.CTkEntry):
+            self._add_entry_buttons(widget)
+        elif isinstance(widget, ctk.CTkTextbox):
+            self._add_textbox_buttons(widget)
+        elif isinstance(widget, ctk.CTkLabel):
+            b = ctk.CTkButton(self.menu, text="📋 نسخ",
+                               command=lambda: widget.clipboard_clear() or widget.clipboard_append(widget.cget("text")))
+            b.pack(fill="x")
+
+        # Close menu if click outside
+        self.menu.focus_force()
+        self.menu.bind("<FocusOut>", lambda e: self.menu.destroy())
+
+    # ---------------- Entry Buttons ----------------
+    def _add_entry_buttons(self, widget):
+        ctk.CTkButton(self.menu, text="✂️ Cut", command=lambda: self._cut_entry(widget)).pack(fill="x")
+        ctk.CTkButton(self.menu, text="📋 Copy", command=lambda: self._copy_entry(widget)).pack(fill="x")
+        ctk.CTkButton(self.menu, text="📌 Paste", command=lambda: self._paste_entry(widget)).pack(fill="x")
+        ctk.CTkButton(self.menu, text="🔹 Select All", command=lambda: widget.select_range(0, "end")).pack(fill="x")
+        ctk.CTkButton(self.menu, text="🧹 Clear", command=lambda: widget.delete(0, "end")).pack(fill="x")
+
+    # ---------------- Textbox Buttons ----------------
+    def _add_textbox_buttons(self, widget):
+        ctk.CTkButton(self.menu, text="✂️ Cut", command=lambda: self._cut_textbox(widget)).pack(fill="x")
+        ctk.CTkButton(self.menu, text="📋 Copy", command=lambda: self._copy_textbox(widget)).pack(fill="x")
+        ctk.CTkButton(self.menu, text="📌 Paste", command=lambda: self._paste_textbox(widget)).pack(fill="x")
+        ctk.CTkButton(self.menu, text="🔹 Select All", command=lambda: widget.tag_add("sel", "1.0", "end")).pack(fill="x")
+        ctk.CTkButton(self.menu, text="🧹 Clear", command=lambda: widget.delete("1.0", "end")).pack(fill="x")
+
+    # ---------------- Helpers ----------------
+    def _cut_entry(self, widget):
+        self._copy_entry(widget)
+        widget.delete(0, "end")
+
+    def _copy_entry(self, widget):
+        widget.clipboard_clear()
+        try:
+            selection = widget.selection_get()
+            widget.clipboard_append(selection)
+        except tk.TclError:
+            widget.clipboard_append(widget.get())
+
+    def _paste_entry(self, widget):
+        try:
+            widget.insert(widget.index("insert"), widget.clipboard_get())
+        except tk.TclError:
+            pass
+
+    def _cut_textbox(self, widget):
+        self._copy_textbox(widget)
+        widget.delete("1.0", "end")
+
+    def _copy_textbox(self, widget):
+        widget.clipboard_clear()
+        try:
+            selection = widget.get("sel.first", "sel.last")
+            widget.clipboard_append(selection)
+        except tk.TclError:
+            widget.clipboard_append(widget.get("1.0", "end-1c"))
+
+    def _paste_textbox(self, widget):
+        try:
+            widget.insert("insert", widget.clipboard_get())
+        except tk.TclError:
+            pass
+
 class StudentManagerApp(ctk.CTk):
     """
     Main GUI application using CustomTkinter.
     """
 
     FIELD_KEYS = {
-        "email": "Email",
-        "date": "Date",
         "teacher_name": "Teacher Name",
         "student_name": "Student Name",
+        "email": "Email",
+        "date": "Date",
+
         "quran_surah": "Quran Surah",
         "tafseer": "Tafseer",
-        "noor_page": "Noor Elbayan Page no.",
+        "noor_page": "Noor Elbayan Page No.",
         "tajweed_rules": "Tajweed Rules",
-        "topic": "Islamic Topic / AlQurancircle Duaa Book",
+        "topic": "Islamic Topic / AlQuranCircle Duʿaa Book",
         "homework": "H.W",
+
         "parent_notes": "Additional Notes for Parent",
         "admin_notes": "Additional Notes for Admins",
+        "teacher_notes": "Additional Notes for Teachers",
     }
 
     def __init__(self):
         super().__init__()
         ensure_directories()
         setup_logging()
-
+        
         # Apply theme and scaling from config
         theme = config.get("theme", "system")
         scaling = config.get("appearance.ui_scaling", 1.0)
@@ -149,6 +258,7 @@ class StudentManagerApp(ctk.CTk):
         self.bind('<Configure>', self._on_window_resize)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         
+        
     def _on_window_resize(self, event=None):
         """Handle window resize events to ensure proper scaling."""
         # Update any dynamic elements here if needed
@@ -162,7 +272,8 @@ class StudentManagerApp(ctk.CTk):
         self.sidebar = ctk.CTkFrame(self, width=280, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew", padx=(10, 5), pady=10)
         self.sidebar.grid_propagate(False)
-        
+        #context_menu
+
         # Configure grid weights
         self.sidebar.grid_rowconfigure(1, weight=1)  # For the scrollable area
         self.sidebar.grid_columnconfigure(0, weight=1)
@@ -361,7 +472,8 @@ class StudentManagerApp(ctk.CTk):
         self.main_panel.grid_rowconfigure(1, weight=1)   # scrollable form
         self.main_panel.grid_rowconfigure(2, weight=0)   # fixed bottom actions
         self.main_panel.grid_columnconfigure(0, weight=1)
-
+        # Context Menu
+        self.context_menu = SmartContextMenu(self)
         # =============================
         # HEADER AREA (Title + Buttons)
         # =============================
@@ -378,23 +490,23 @@ class StudentManagerApp(ctk.CTk):
         self.main_title = ctk.CTkLabel(
             title_box,
             text=PROJECT_TITLE,
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=ctk.CTkFont(size=24, weight="bold",family="Cairo")
         )
         self.main_title.grid(row=0, column=0, sticky="w")
 
         self.subtitle_label = ctk.CTkLabel(
             title_box,
             text=f"{PROJECT_VERSION} • {PROJECT_DEVELOPER}",
-            font=ctk.CTkFont(size=12),
-            text_color="#A0A0A0"  # Subtle gray for secondary info
+            font=ctk.CTkFont(size=13,weight="bold"),
+            text_color="#c83860"  # Subtle gray for secondary info
         )
         self.subtitle_label.grid(row=1, column=0, sticky="w", pady=(2, 0))
 
         self.description_label = ctk.CTkLabel(
             title_box,
             text=PROJECT_DESCRIPTION,
-            font=ctk.CTkFont(size=11),
-            text_color="#C0C0C0"
+            font=ctk.CTkFont(size=13),
+            text_color="#1a1a1a"
         )
         self.description_label.grid(row=2, column=0, sticky="w", pady=(2, 0))
 
@@ -452,6 +564,7 @@ class StudentManagerApp(ctk.CTk):
         # =============================
         form_scroll = ctk.CTkScrollableFrame(self.main_panel)
         form_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 8))
+        form_scroll.grid_columnconfigure(0, minsize=200)
         form_scroll.grid_columnconfigure(1, weight=1)
 
         self.field_widgets = {}
@@ -461,13 +574,13 @@ class StudentManagerApp(ctk.CTk):
             lbl = ctk.CTkLabel(form_scroll, text=text + ":")
             lbl.grid(row=row_index, column=0, padx=10, pady=4, sticky="w")
 
-            if key in {"parent_notes", "admin_notes"}:
+            if key in {"teacher_notes","parent_notes", "admin_notes"}:
                 widget = ctk.CTkTextbox(form_scroll, height=60)
+                self.context_menu.bind(widget)
 
             elif key == "tafseer":
                 widget = ctk.CTkComboBox(form_scroll, values=["Yes", "No"], state="readonly")
                 widget.set("")
-
             elif key == "date":
                 widget = ctk.CTkFrame(form_scroll)
                 widget.grid_columnconfigure(0, weight=1)
@@ -477,6 +590,7 @@ class StudentManagerApp(ctk.CTk):
 
                 date_entry = ctk.CTkEntry(inner)
                 date_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+                self.context_menu.bind(date_entry)  # ✅ مهم
 
                 cal_btn = ctk.CTkButton(
                     inner,
@@ -490,10 +604,16 @@ class StudentManagerApp(ctk.CTk):
 
             else:
                 widget = ctk.CTkEntry(form_scroll)
+                self.context_menu.bind(widget)  # ✅ مهم
+                
 
             widget.grid(row=row_index, column=1, padx=10, pady=4, sticky="ew")
             self.field_widgets[key] = widget
             row_index += 1
+        form_scroll.update_idletasks()
+
+
+
 
         # =============================
         # FIXED BOTTOM ACTION BAR
@@ -511,13 +631,19 @@ class StudentManagerApp(ctk.CTk):
 
         self.history_button = ctk.CTkButton(actions, text="History", command=self.open_history_dialog)
         self.history_button.grid(row=0, column=2, padx=4, pady=4, sticky="ew")
+        self.export_image_button = ctk.CTkButton(
+            actions,
+            text="Export PNG",
+            command=self.export_report_as_image
+        )
+        self.export_image_button.grid(row=0, column=3, padx=4, pady=4, sticky="ew")
 
         # Numeric inputs
         retries_label = ctk.CTkLabel(actions, text="Retries:")
-        retries_label.grid(row=0, column=3, padx=(10, 2), sticky="e")
+        retries_label.grid(row=1, column=5, padx=(10, 2), sticky="e")
         self.retries_entry = ctk.CTkEntry(actions, width=60)
         self.retries_entry.insert(0, str(self._ui_settings.get("retries", 3)))
-        self.retries_entry.grid(row=0, column=4, padx=2, sticky="w")
+        self.retries_entry.grid(row=1, column=6, padx=2, sticky="w")
 
         delay_label = ctk.CTkLabel(actions, text="Delay (s):")
         delay_label.grid(row=0, column=5, padx=(10, 2), sticky="e")
@@ -554,6 +680,139 @@ class StudentManagerApp(ctk.CTk):
 
     # --- Helper methods --------------------------------------------------
 
+    def export_report_as_image(self):
+        
+        """تصدير محتوى الـ form الحالي كصورة PNG مع دعم العربية والتاريخ"""
+        os.makedirs(PNG_REPORTS_DIR, exist_ok=True)
+
+        width = 800
+        padding = 10
+        y = 60
+        box_spacing = 10
+        max_chars_per_line = 110
+
+        # تحميل الخطوط
+        try:
+            font_title = ImageFont.truetype("arialbd.ttf", 24)
+            font_label = ImageFont.truetype("arialbd.ttf", 14)
+            font_text = ImageFont.truetype("arial.ttf", 14)
+        except:
+            font_title = ImageFont.load_default()
+            font_label = ImageFont.load_default()
+            font_text = ImageFont.load_default()
+
+        # حساب ارتفاع الصورة ديناميكيًا
+        total_height = 60
+        box_heights = []
+        for key in self.FIELD_KEYS:
+            widget = self.field_widgets.get(key)
+            if widget is None:
+                continue
+
+            # جلب القيمة حسب النوع
+            if isinstance(widget, ctk.CTkEntry):
+                value = widget.get()
+            elif isinstance(widget, ctk.CTkTextbox):
+                value = widget.get("1.0", "end-1c")
+            elif isinstance(widget, ctk.CTkComboBox):
+                value = widget.get()
+            elif key == "date" and hasattr(widget, "_entry"):
+                value = widget._entry.get()
+            else:
+                value = ""
+
+            value = value if value else "-"
+            # إعادة تشكيل النص العربي
+            reshaped_value = arabic_reshaper.reshape(value)
+            bidi_value = get_display(reshaped_value)
+
+            lines = textwrap.wrap(bidi_value, width=max_chars_per_line)
+            box_height = 25 + 20 * len(lines)
+            box_heights.append(box_height)
+            total_height += box_height + box_spacing
+
+        # إنشاء الصورة
+        img = Image.new("RGB", (width, total_height), color="#1E1E1E")
+        draw = ImageDraw.Draw(img)
+
+        # عنوان التقرير
+        draw.text((padding, 10), f"{PROJECT_TITLE} Report", fill="white", font=font_title)
+
+        # رسم الحقول
+        y = 60
+        for idx, (key, label) in enumerate(self.FIELD_KEYS.items()):
+            widget = self.field_widgets.get(key)
+            if widget is None:
+                continue
+
+            # جلب القيمة حسب النوع
+            if isinstance(widget, ctk.CTkEntry):
+                value = widget.get()
+            elif isinstance(widget, ctk.CTkTextbox):
+                value = widget.get("1.0", "end-1c")
+            elif isinstance(widget, ctk.CTkComboBox):
+                value = widget.get()
+            elif key == "date" and hasattr(widget, "_entry"):
+                value = widget._entry.get()
+            else:
+                value = ""
+
+            value = value if value else "-"
+
+            # إعادة تشكيل النص العربي فقط
+            reshaped_value = arabic_reshaper.reshape(value)
+            bidi_value = get_display(reshaped_value)
+
+            lines = textwrap.wrap(bidi_value, width=max_chars_per_line)
+            box_height = box_heights[idx]
+
+            # صندوق الحقل
+            draw.rectangle(
+                [padding, y, width - padding, y + box_height],
+                fill="#2A2A2A",
+                outline="#444444"
+            )
+
+            # رسم label (للعربية أيضًا)
+            reshaped_label = arabic_reshaper.reshape(label)
+            bidi_label = get_display(reshaped_label)
+            draw.text((padding + 5, y + 5), f"{bidi_label}:", fill="cyan", font=font_label)
+
+            # رسم النص داخل الصندوق
+            for i, line in enumerate(lines):
+                draw.text((padding + 5, y + 25 + i*20), line, fill="white", font=font_text)
+
+            y += box_height + box_spacing
+
+            # جلب اسم الطالب
+            student_name_widget = self.field_widgets.get("student_name")
+            if student_name_widget:
+                student_name = student_name_widget.get().strip()
+            else:
+                student_name = "Unknown"
+
+            # استبدال أي حروف غير صالحة في اسم الملف
+            import re
+            student_name = re.sub(r'[\\/*?:"<>|]', "_", student_name).replace(" ","_")
+            if not student_name:
+                student_name = "Unknown"
+
+            # اسم الملف النهائي
+            filename = os.path.join(
+                PNG_REPORTS_DIR,
+                f"{student_name}_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+            )
+        img.save(filename)
+
+        # فتح الملف تلقائيًا (Windows)
+        try:
+            os.startfile(filename)
+        except Exception as e:
+            print(f"Could not open file automatically: {e}")
+
+        # رسالة تأكيد
+        messagebox.showinfo(title="Export Successful", message=f"Report saved as {filename}")
+        
     def _save_ui_settings(self) -> None:
         """Save all UI-related settings to config."""
         config.set("ui_settings.auto_save", bool(self.autosave_switch.get()))
@@ -561,6 +820,7 @@ class StudentManagerApp(ctk.CTk):
         config.set("ui_settings.show_browser", bool(self.show_browser_switch.get()))
         config.set("ui_settings.use_extension", bool(self.use_extension_switch.get()))
         config.set("ui_settings.auto_submit", bool(self.auto_submit_switch.get()))
+        
         
         # Save retry settings
         try:
@@ -1622,6 +1882,8 @@ def launch_app() -> None:
     """
     Launcher function called from main.py.
     """
+    from version import check_usage_limit
+    check_usage_limit()
     app = StudentManagerApp()
     log_action(f"Application started. Profiles directory: {PROFILES_DIR}")
     app.mainloop()
