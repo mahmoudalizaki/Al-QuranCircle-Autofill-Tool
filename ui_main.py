@@ -182,7 +182,25 @@ class SmartContextMenu:
             widget.insert("insert", widget.clipboard_get())
         except tk.TclError:
             pass
+import logging
 
+
+class UILogHandler(logging.Handler):
+    def __init__(self, ui):
+        super().__init__()
+        self.ui = ui
+
+    def emit(self, record):
+        msg = self.format(record)
+
+        if record.levelno >= logging.ERROR:
+            level = "error"
+        elif record.levelno >= logging.WARNING:
+            level = "warning"
+        else:
+            level = "info"
+
+        self.ui.after(0, lambda: self.ui.log(msg, level))
 class StudentManagerApp(ctk.CTk):
     """
     Main GUI application using CustomTkinter.
@@ -210,7 +228,12 @@ class StudentManagerApp(ctk.CTk):
         super().__init__()
         ensure_directories()
         setup_logging()
-        
+        # Setup Loggin
+        handler = UILogHandler(self)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logging.getLogger().addHandler(handler)
+        logging.getLogger().setLevel(logging.INFO)
+
         # Apply theme and scaling from config
         theme = config.get("theme", "system")
         scaling = config.get("appearance.ui_scaling", 1.0)
@@ -316,6 +339,59 @@ class StudentManagerApp(ctk.CTk):
         """Handle window resize events to ensure proper scaling."""
         # Update any dynamic elements here if needed
         pass
+
+
+    def log(self, message: str, level: str = "info") -> None:
+        colors = {
+            "info": "#1a1a1a",
+            "success": "#1f7a1f",
+            "warning": "#b36b00",
+            "error": "#b00020"
+        }
+
+        icons = {
+            "info": "ℹ️",
+            "success": "✅",
+            "warning": "⚠️",
+            "error": "❌"
+        }
+
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        tag = level
+
+        self.log_textbox.configure(state="normal")
+        self.log_textbox.tag_config(tag, foreground=colors.get(level))
+
+        self.log_textbox.insert(
+            "end",
+            f"[{timestamp}] {icons.get(level,'')} {message}\n",
+            tag
+        )
+
+        self.log_textbox.see("end")
+        self.log_textbox.configure(state="disabled")
+        
+
+    def save_log_to_file(self) -> None:
+        content = self.log_textbox.get("1.0", "end").strip()
+        if not content:
+            return
+
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text File", "*.txt")],
+            initialfile=f"log_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.txt"
+        )
+
+        if filename:
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write(content)
+
+            self.log("Log saved successfully", "success")
+    def clear_log(self) -> None:
+        self.log_textbox.configure(state="normal")
+        self.log_textbox.delete("1.0", "end")
+        self.log_textbox.configure(state="disabled")
 
     # --- UI Creation Methods ---------------------------------------------
 
@@ -522,8 +598,9 @@ class StudentManagerApp(ctk.CTk):
         self.main_panel = ctk.CTkFrame(self)
         self.main_panel.grid(row=0, column=1, sticky="nsew", padx=(0, 10), pady=10)
         self.main_panel.grid_rowconfigure(0, weight=0)   # header
-        self.main_panel.grid_rowconfigure(1, weight=1)   # scrollable form
-        self.main_panel.grid_rowconfigure(2, weight=0)   # fixed bottom actions
+        self.main_panel.grid_rowconfigure(1, weight=0)   # log panel
+        self.main_panel.grid_rowconfigure(2, weight=1)   # scrollable form
+        self.main_panel.grid_rowconfigure(3, weight=0)   # fixed bottom actions
         self.main_panel.grid_columnconfigure(0, weight=1)
         # Context Menu
         self.context_menu = SmartContextMenu(self)
@@ -611,12 +688,63 @@ class StudentManagerApp(ctk.CTk):
             command=self.submit_current_profile_to_form
         )
         self.submit_button.grid(row=0, column=2, padx=(12, 0), sticky="e")
+        # =============================
+        # COLLAPSIBLE LOG PANEL
+        # =============================
+        self.log_visible = True
+
+        log_container = ctk.CTkFrame(self.main_panel)
+        log_container.grid(row=1, column=0, sticky="ew", padx=10, pady=(0, 8))
+        log_container.grid_columnconfigure(0, weight=1)
+
+        log_header = ctk.CTkFrame(log_container)
+        log_header.grid(row=0, column=0, sticky="ew")
+        log_header.grid_columnconfigure(0, weight=1)
+
+        self.toggle_log_btn = ctk.CTkButton(
+            log_header,
+            text="🔽 Log",
+            width=80,
+            height=26,
+            command=self.toggle_log
+        )
+        self.toggle_log_btn.grid(row=0, column=0, sticky="w")
+
+        clear_btn = ctk.CTkButton(
+            log_header,
+            text="🧹 Clear",
+            width=80,
+            height=26,
+            command=self.clear_log
+        )
+        clear_btn.grid(row=0, column=1, sticky="e")
+
+        save_btn = ctk.CTkButton(
+            log_header,
+            text="💾 Save",
+            width=80,
+            height=26,
+            command=self.save_log_to_file
+        )
+        save_btn.grid(row=0, column=2, sticky="e", padx=(5, 0))
+
+        self.log_body = ctk.CTkFrame(log_container)
+        self.log_body.grid(row=1, column=0, sticky="ew", pady=(6, 0))
+        self.log_body.grid_columnconfigure(0, weight=1)
+
+        self.log_textbox = ctk.CTkTextbox(
+            self.log_body,
+            height=110,
+            wrap="word"
+        )
+        self.log_textbox.grid(row=0, column=0, sticky="ew")
+        self.log_textbox.configure(state="disabled")
 
         # =============================
         # SCROLLABLE FORM AREA
         # =============================
         form_scroll = ctk.CTkScrollableFrame(self.main_panel)
-        form_scroll.grid(row=1, column=0, sticky="nsew", pady=(0, 8))
+        form_scroll.grid(row=2, column=0, sticky="nsew", pady=(0, 8))
         form_scroll.grid_columnconfigure(0, minsize=200)
         form_scroll.grid_columnconfigure(1, weight=1)
 
@@ -672,7 +800,7 @@ class StudentManagerApp(ctk.CTk):
         # FIXED BOTTOM ACTION BAR
         # =============================
         actions = ctk.CTkFrame(self.main_panel)
-        actions.grid(row=2, column=0, sticky="ew")
+        actions.grid(row=3, column=0, sticky="ew")
         actions.grid_columnconfigure((0,1,2,3,4,5,6), weight=1)
 
         # Row 0 buttons
@@ -732,6 +860,15 @@ class StudentManagerApp(ctk.CTk):
 
 
     # --- Helper methods --------------------------------------------------
+    def toggle_log(self) -> None:
+        if self.log_visible:
+            self.log_body.grid_remove()
+            self.toggle_log_btn.configure(text="▶ Log")
+        else:
+            self.log_body.grid()
+            self.toggle_log_btn.configure(text="🔽 Log")
+
+        self.log_visible = not self.log_visible
 
     def export_report_as_image(self):
         
