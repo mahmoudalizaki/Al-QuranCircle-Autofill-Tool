@@ -83,7 +83,7 @@ except (ImportError, AttributeError):
     from settings_dialog import SettingsDialog
     
     PROJECT_TITLE = "Al-QuranCircle AutoFill Reports"
-    PROJECT_VERSION = "1.0.1"
+    PROJECT_VERSION = "1.2.0"
     PROJECT_DEVELOPER = "Developed by Mahmoud Zaki"
     PROJECT_DESCRIPTION = "Free automated reporting tool. This is a beta version of the application,\nplease report any issues to the developer.\n\nDont't forget to make Du'aa for my parents." # "Automated reporting tool for Quran and Islamic studies teachers to manage student progress and generate reports.\n\nThis is a beta version of the application, please report any issues to the developer.\n\nDont't forget to make Du'aa for my parents."
 
