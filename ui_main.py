@@ -33,7 +33,7 @@ try:
     if frame and frame.f_back and 'ui' in frame.f_back.f_globals:
         # We're being imported by ui package, skip the import
         raise ImportError("Circular import detected")
-    from ui.ui import (
+    from ui_main import (
         PROJECT_TITLE,
         PROJECT_VERSION,
         PROJECT_DEVELOPER,
@@ -129,7 +129,7 @@ class SmartContextMenu:
         # Close menu if click outside
         self.menu.focus_force()
         self.menu.bind("<FocusOut>", lambda e: self.menu.destroy())
-
+        self._configure_log_colors()
     # ---------------- Entry Buttons ----------------
     def _add_entry_buttons(self, widget):
         ctk.CTkButton(self.menu, text="✂️ Cut", command=lambda: self._cut_entry(widget)).pack(fill="x")
@@ -296,20 +296,15 @@ class StudentManagerApp(ctk.CTk):
         self.bind('<Configure>', self._on_window_resize)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
         self.apply_saved_appearance()
-     
     def apply_saved_appearance(self):
-        """Apply saved appearance settings from config.json to the entire app."""
         try:
-            # قراءة القيم من config
             theme_mode = config.get("appearance.theme", "system")
             color_theme = config.get("appearance.color_theme", "blue")
             scaling = config.get("appearance.ui_scaling", 1.0)
             font_family = config.get("appearance.font_family", "Arial")
             font_size = config.get("appearance.font_size", 12)
 
-            # تحديث الواجهة
-            mode_map = {"system": "System", "light": "Light", "dark": "Dark"}
-            ctk.set_appearance_mode(mode_map.get(theme_mode.lower(), "System"))
+            ctk.set_appearance_mode({"system":"System","light":"Light","dark":"Dark"}.get(theme_mode.lower(), "System"))
 
             theme_path = THEMES_DIR / f"{color_theme}.json"
             if theme_path.exists():
@@ -320,17 +315,18 @@ class StudentManagerApp(ctk.CTk):
             ctk.set_widget_scaling(scaling)
             ctk.set_window_scaling(scaling)
 
-            # تحديث الخطوط لكل العناصر
             new_font = ctk.CTkFont(family=font_family, size=font_size)
+
             def recursive_update(widget):
                 try:
                     widget.configure(font=new_font)
-                except:
+                except Exception:
                     pass
-                for child in widget.winfo_children():
+                for child in getattr(widget, "winfo_children", lambda: [])():
                     recursive_update(child)
 
-            recursive_update(self)
+            # استخدم getattr لضمان عدم الكراش لو main_container مش موجود
+            recursive_update(getattr(self, "main_container", self))
 
         except Exception as e:
             print(f"Failed to apply saved appearance: {e}")
@@ -342,11 +338,13 @@ class StudentManagerApp(ctk.CTk):
 
 
     def log(self, message: str, level: str = "info") -> None:
+        from datetime import datetime
+
         colors = {
-            "info": "#1a1a1a",
-            "success": "#1f7a1f",
-            "warning": "#b36b00",
-            "error": "#b00020"
+            "info": "#E6E6E6" if ctk.get_appearance_mode() == "Dark" else "#1a1a1a",
+            "success": "#4CAF50",
+            "warning": "#FFC107",
+            "error": "#F44336"
         }
 
         icons = {
@@ -357,20 +355,38 @@ class StudentManagerApp(ctk.CTk):
         }
 
         timestamp = datetime.now().strftime("%H:%M:%S")
-        tag = level
 
         self.log_textbox.configure(state="normal")
-        self.log_textbox.tag_config(tag, foreground=colors.get(level))
 
         self.log_textbox.insert(
             "end",
-            f"[{timestamp}] {icons.get(level,'')} {message}\n",
-            tag
+            f"[{timestamp}] {icons[level]} {message}\n",
+            ("color",)
+        )
+
+        self.log_textbox.tag_config(
+            "color",
+            foreground=colors.get(level)
         )
 
         self.log_textbox.see("end")
         self.log_textbox.configure(state="disabled")
-        
+    def on_theme_change(self):
+        self._configure_log_colors()
+        self.log("Theme changed", "info")
+    def _configure_log_colors(self):
+        appearance = ctk.get_appearance_mode()
+
+        if appearance == "Dark":
+            self.log_textbox.configure(
+                text_color="#E6E6E6",   # فاتح
+                fg_color="#1e1e1e",     # خلفية داكنة
+            )
+        else:
+            self.log_textbox.configure(
+                text_color="#1a1a1a",
+                fg_color="#ffffff",
+            )
 
     def save_log_to_file(self) -> None:
         content = self.log_textbox.get("1.0", "end").strip()
@@ -802,7 +818,7 @@ class StudentManagerApp(ctk.CTk):
         self.history_button.grid(row=0, column=2, padx=4, pady=4, sticky="ew")
         self.export_image_button = ctk.CTkButton(
             actions,
-            text="Export PNG",
+            text="Share as PNG",
             command=self.export_report_as_image
         )
         self.export_image_button.grid(row=0, column=3, padx=4, pady=4, sticky="ew")

@@ -114,7 +114,6 @@ class SettingsDialog(ctk.CTkToplevel):
         # Bind Enter key to save
         self.bind('<Return>', self._on_save)
         self.bind('<Escape>', lambda e: self.destroy())
-
     def _setup_appearance_tab(self):
         """Set up the appearance tab with theme and UI options."""
         tab = self.tabview.tab("Appearance")
@@ -125,13 +124,16 @@ class SettingsDialog(ctk.CTkToplevel):
         
         ctk.CTkLabel(theme_frame, text="Appearance", font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(0, 10))
         
-        self.appearance_var = ctk.StringVar(value=config.get("theme", "system"))
+                # عند فتح الـ dialog
+        current_theme = config.get("appearance.theme", config.get("theme", "system"))
+        self.appearance_var = ctk.StringVar(value=current_theme)
+
         ctk.CTkLabel(theme_frame, text="Mode:").pack(anchor="w")
         appearance_menu = ctk.CTkOptionMenu(
             theme_frame,
             values=["system", "light", "dark"],
             variable=self.appearance_var,
-            command=self._on_appearance_change
+            command=self._on_appearance_select  # ← استخدم handler جديد
         )
         appearance_menu.pack(fill="x", pady=(0, 10))
         
@@ -150,7 +152,7 @@ class SettingsDialog(ctk.CTkToplevel):
             theme_frame,
             values=all_themes,
             variable=self.color_theme_var,
-            command=self._on_color_theme_change
+            command=self._on_color_theme_select  # ← handler جديد
         )
         color_menu.pack(fill="x", pady=(0, 10))
             
@@ -197,39 +199,33 @@ class SettingsDialog(ctk.CTkToplevel):
         font_size_slider.pack(fill="x", pady=(0, 10))
 
 
+    # --- Handlers الجديدة ---
 
-    # --- Handlers ---
+    def _on_appearance_select(self, value: str):
+        """تحديث المتغير فقط بدون تطبيق فورًا على التطبيق"""
+        self.appearance_var.set(value)
 
-    def _on_appearance_change(self, value: str):
-        """Apply appearance mode: System / Light / Dark."""
-        mode_map = {"system": "System", "light": "Light", "dark": "Dark"}
-        selected_mode = mode_map.get(value.lower(), "System")
+    def _on_color_theme_select(self, value: str):
+        """تحديث المتغير فقط بدون تطبيق فورًا على التطبيق"""
+        self.color_theme_var.set(value)
+
+    def _apply_appearance_settings(self):
+        """تطبيق الـ appearance و color theme على التطبيق عند الحفظ"""
         try:
+            # Appearance mode
+            mode_map = {"system": "System", "light": "Light", "dark": "Dark"}
+            selected_mode = mode_map.get(self.appearance_var.get().lower(), "System")
             ctk.set_appearance_mode(selected_mode)
-            if hasattr(config, "set"):
-                config.set("theme", value.lower())
-        except Exception as e:
-            print(f"Failed to apply appearance mode '{selected_mode}': {e}")
-
-
-    def _on_color_theme_change(self, value: str):
-        """Apply the selected color theme (default or JSON file from THEMES_DIR)."""
-        theme_path = THEMES_DIR / f"{value}.json"
-        try:
+            
+            # Color theme
+            theme_path = THEMES_DIR / f"{self.color_theme_var.get()}.json"
             if theme_path.exists():
                 ctk.set_default_color_theme(str(theme_path))
             else:
-                ctk.set_default_color_theme(value)  # افتراضي
-            
-            # حفظ الإعداد في ConfigManager
-            if hasattr(config, "set"):
-                config.set("appearance.color_theme", value)
-            else:
-                print("Config object does not support 'set', color theme not saved")
+                ctk.set_default_color_theme(self.color_theme_var.get())
         except Exception as e:
-            print(f"Failed to apply color theme '{value}': {e}")
-
-                
+            print(f"Failed to apply appearance settings: {e}")
+           
     def _setup_teacher_tab(self):
         """Set up the teacher information tab."""
         tab = self.tabview.tab("Teacher")
@@ -594,23 +590,89 @@ class SettingsDialog(ctk.CTkToplevel):
         except Exception as e:
             logging.error(f"Error loading settings: {e}", exc_info=True)
             
+    # def _save_settings(self) -> bool:
+    #     """Save settings from the dialog to config."""
+    #     try:
+    #         # Save appearance / theme (store in both appearance + root for compatibility)
+    #         selected_theme = self.theme_var.get()
+    #         config.set("appearance.theme", selected_theme)
+    #         if hasattr(config, "set_theme"):
+    #             config.set_theme(selected_theme)
+    #         else:
+    #             config.set("theme", selected_theme)
+    #         config.set("appearance.font_family", self.font_family_var.get())
+    #         config.set("appearance.font_size", self.font_size_var.get())
+    #         config.set("appearance.ui_scaling", self.scaling_var.get())
+    #         config.set("appearance.color_theme", self.color_theme_var.get())
+
+            
+    #         # Save teacher info
+    #         teacher_info = {
+    #             "name": self.teacher_name_var.get().strip(),
+    #             "email": self.teacher_email_var.get().strip(),
+    #             "phone": self.teacher_phone_var.get().strip(),
+    #             "institution": self.teacher_institution_var.get().strip(),
+    #             "max_students": self.max_students_var.get()
+    #         }
+    #         config.set("teacher", teacher_info)
+            
+    #         # Save backup settings
+    #         backup_info = {
+    #             "auto_backup": self.auto_backup_var.get(),
+    #             "backup_count": self.backup_count_var.get(),
+    #             "backup_path": self.backup_path_var.get().strip()
+    #         }
+    #         config.set("backup", backup_info)
+            
+    #         # Save report settings
+    #         report_info = {
+    #             "default_format": self.report_format_var.get(),
+    #             "include_logo": self.include_logo_var.get(),
+    #             "logo_path": self.logo_path_var.get().strip()
+    #         }
+    #         config.set("reports", report_info)
+            
+    #         # Save Google Form settings
+    #         google_form_info = {
+    #             "form_url": self.google_form_url.get().strip(),
+    #             "auto_submit": self.auto_submit.get(),
+    #             "retries": self.max_retries.get(),
+    #             "retry_delay": self.retry_delay.get()
+    #         }
+    #         config.set("google_form", google_form_info)
+    #         config.set("reports.logo_path", self.logo_path_var.get().strip())
+    #         # Save all settings to disk
+    #         if not config.save_settings():
+    #             raise Exception("Failed to save settings")
+                
+    #         # --- Update UI after saving settings ---
+
+    #         # Scaling
+    #         scaling = self.scaling_var.get()
+    #         ctk.set_widget_scaling(scaling)
+    #         ctk.set_window_scaling(scaling)
+
+    #         # Appearance mode
+    #         self._apply_appearance_settings()
+
+            
+    #         return True
+            
+    #     except Exception as e:
+    #         logging.error(f"Error saving settings: {e}", exc_info=True)
+    #         return False
     def _save_settings(self) -> bool:
-        """Save settings from the dialog to config."""
+        """Save settings from the dialog to config and apply them immediately."""
         try:
-            # Save appearance / theme (store in both appearance + root for compatibility)
-            selected_theme = self.theme_var.get()
-            config.set("appearance.theme", selected_theme)
-            if hasattr(config, "set_theme"):
-                config.set_theme(selected_theme)
-            else:
-                config.set("theme", selected_theme)
+            # --- حفظ الإعدادات في Config ---
+            # Appearance
+            config.set("appearance.theme", self.appearance_var.get())
+            config.set("appearance.color_theme", self.color_theme_var.get())
             config.set("appearance.font_family", self.font_family_var.get())
             config.set("appearance.font_size", self.font_size_var.get())
             config.set("appearance.ui_scaling", self.scaling_var.get())
-            config.set("appearance.color_theme", self.color_theme_var.get())
-
             
-            # Save teacher info
+            # Teacher
             teacher_info = {
                 "name": self.teacher_name_var.get().strip(),
                 "email": self.teacher_email_var.get().strip(),
@@ -620,7 +682,7 @@ class SettingsDialog(ctk.CTkToplevel):
             }
             config.set("teacher", teacher_info)
             
-            # Save backup settings
+            # Backup
             backup_info = {
                 "auto_backup": self.auto_backup_var.get(),
                 "backup_count": self.backup_count_var.get(),
@@ -628,7 +690,7 @@ class SettingsDialog(ctk.CTkToplevel):
             }
             config.set("backup", backup_info)
             
-            # Save report settings
+            # Reports
             report_info = {
                 "default_format": self.report_format_var.get(),
                 "include_logo": self.include_logo_var.get(),
@@ -636,7 +698,7 @@ class SettingsDialog(ctk.CTkToplevel):
             }
             config.set("reports", report_info)
             
-            # Save Google Form settings
+            # Google Form
             google_form_info = {
                 "form_url": self.google_form_url.get().strip(),
                 "auto_submit": self.auto_submit.get(),
@@ -644,38 +706,37 @@ class SettingsDialog(ctk.CTkToplevel):
                 "retry_delay": self.retry_delay.get()
             }
             config.set("google_form", google_form_info)
-            config.set("reports.logo_path", self.logo_path_var.get().strip())
-            # Save all settings to disk
+            
+            # حفظ كل شيء على القرص أولًا
             if not config.save_settings():
-                raise Exception("Failed to save settings")
-                
-            # --- Update UI after saving settings ---
-
-            # Scaling
-            scaling = self.scaling_var.get()
-            ctk.set_widget_scaling(scaling)
-            ctk.set_window_scaling(scaling)
-
-            # Appearance mode
-            self._on_appearance_change(self.appearance_var.get())
-
-            # Color theme
-            self._on_color_theme_change(self.color_theme_var.get())
+                raise Exception("Failed to save settings to disk")
+            
+            # --- تطبيق الإعدادات على التطبيق فورًا ---
+            self._apply_appearance_settings()
             
             return True
-            
+
         except Exception as e:
             logging.error(f"Error saving settings: {e}", exc_info=True)
             return False
 
-            
+          
     def _on_save(self):
         if self._save_settings():
-            messagebox.showinfo("Saved!","Your settings has been Saved!\nPlease restart the application to load new settings!")
-            self.destroy()  # اغلاق نافذة الإعدادات
+            # إعلام المستخدم
+            messagebox.showinfo(
+                "Settings Saved",
+                "Your settings have been saved successfully!\n"
+                "Please restart the application manually to apply the new settings."
+            )
 
-            # Apply settings to existing main window
-            if hasattr(self.master, "apply_saved_appearance"):
-                self.master.apply_saved_appearance()
+            # اغلاق نافذة الإعدادات
+            self.destroy()
 
+            # اغلاق Main UI إذا موجود
+            if hasattr(self.master, "destroy"):
+                self.master.destroy()
 
+            # إنهاء العملية بالكامل
+            import sys
+            sys.exit(0)
